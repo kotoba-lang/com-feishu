@@ -23,13 +23,15 @@
             :user-id "ou_abc"
             :chat-id "oc_xyz"
             :message-id "om_1"
-            :text "hello"}
+            :text "hello"
+            :create-time "1700000000000"}
            (events/text-message-event
             fake-json-read
             {:header {:event_type "im.message.receive_v1"}
              :event {:sender {:sender_id {:open_id "ou_abc"}}
                      :message {:message_id "om_1" :chat_id "oc_xyz"
-                               :message_type "text" :content "{\"text\":\"hello\"}"}}}))))
+                               :message_type "text" :content "{\"text\":\"hello\"}"
+                               :create_time "1700000000000"}}}))))
   (testing "non-text message -> nil"
     (is (nil? (events/text-message-event
                fake-json-read

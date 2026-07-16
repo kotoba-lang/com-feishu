@@ -23,19 +23,21 @@
 
 (defn text-message-event
   "One decoded v2 event body (`{:header {...} :event {...}}`) ->
-  {:type :user-id :chat-id :message-id :text} or nil if it isn't a plain
-  text message (Feishu also delivers image/file/post/interactive-card
-  messages this library doesn't normalize). Feishu double-encodes:
-  `event.message.content` is itself a JSON string (e.g.
+  {:type :user-id :chat-id :message-id :text :create-time} or nil if it
+  isn't a plain text message (Feishu also delivers image/file/post/
+  interactive-card messages this library doesn't normalize). Feishu
+  double-encodes: `event.message.content` is itself a JSON string (e.g.
   `\"{\\\"text\\\":\\\"hi\\\"}\"`), not a nested map -- `json-read` is
   injected so this stays portable rather than hardcoding a JSON library
-  for that inner decode."
+  for that inner decode. `:create-time` is `message.create_time`, epoch
+  milliseconds as a STRING (Feishu's own convention, not this library's)."
   [json-read {:keys [header event]}]
   (when (= "im.message.receive_v1" (:event_type header))
     (let [{:keys [sender message]} event]
       (when (= "text" (:message_type message))
-        {:type       :feishu-text
-         :user-id    (get-in sender [:sender_id :open_id])
-         :chat-id    (:chat_id message)
-         :message-id (:message_id message)
-         :text       (:text (json-read (:content message)))}))))
+        {:type        :feishu-text
+         :user-id     (get-in sender [:sender_id :open_id])
+         :chat-id     (:chat_id message)
+         :message-id  (:message_id message)
+         :text        (:text (json-read (:content message)))
+         :create-time (:create_time message)}))))
