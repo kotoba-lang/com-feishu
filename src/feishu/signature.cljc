@@ -26,33 +26,30 @@
   string compare with no crypto to get subtly wrong.
 
   Reference: https://open.feishu.cn/document/server-docs/event-subscription-guide/event-security-verification"
-  #?(:clj (:import [java.security MessageDigest])))
+  (:require [kotoba.bytes :as b]
+            [kotoba.bytes.sha256 :as sha]))
 
 (defn token-valid?
   [expected-token actual-token]
   (boolean (and expected-token actual-token (= expected-token actual-token))))
 
-#?(:clj
-   (defn- bytes->hex [bs]
-     (apply str (map (fn [b]
-                        (let [h (Integer/toHexString (bit-and (int b) 0xff))]
-                          (if (= 1 (count h)) (str "0" h) h)))
-                      bs))))
+(defn sha256-hex
+  "hex(SHA-256(s)) — the value compared against `X-Lark-Signature`."
+  [s]
+  (sha/sha256-hex (str s)))
 
-#?(:clj
-   (defn sha256-hex
-     "hex(SHA-256(s)) -- the value compared against `X-Lark-Signature`."
-     [s]
-     (bytes->hex (.digest (MessageDigest/getInstance "SHA-256")
-                           (.getBytes (str s) "UTF-8")))))
+(defn valid-signature?
+  "`timestamp` / `nonce` come from the `X-Lark-Request-Timestamp` /
+  `X-Lark-Request-Nonce` headers, `encrypt-key` is the space's configured
+  Encrypt Key, `body` is the RAW request body string (pre-JSON-parse — the
+  same requirement as every other raw-body check in this workspace).
+  `signature` is the `X-Lark-Signature` header value.
 
-#?(:clj
-   (defn valid-signature?
-     "`timestamp`/`nonce` come from the `X-Lark-Request-Timestamp`/
-     `X-Lark-Request-Nonce` headers, `encrypt-key` is the space's
-     configured Encrypt Key, `body` is the RAW request body string
-     (pre-JSON-parse -- same requirement as every other raw-body HMAC
-     check in this workspace). `signature` is the `X-Lark-Signature`
-     header value."
-     [{:keys [timestamp nonce encrypt-key body]} signature]
-     (boolean (and signature (= (str signature) (sha256-hex (str timestamp nonce encrypt-key body)))))))
+  Compared in constant time. The previous plain `=` returned as soon as two
+  characters differed, and this endpoint answers whoever asks, as often as
+  they ask — the shape of leak that lets a signature be recovered a byte at a
+  time."
+  [{:keys [timestamp nonce encrypt-key body]} signature]
+  (boolean (and signature
+                (b/constant-time-eq (str signature)
+                                    (sha256-hex (str timestamp nonce encrypt-key body))))))
