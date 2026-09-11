@@ -42,6 +42,6 @@ trustworthy verification path if you don't need an Encrypt Key configured.
 ## Testing
 
 ```bash
-clojure -M:test
-clojure -M:lint
+kbb -M:test
+kbb -M:lint
 ```
